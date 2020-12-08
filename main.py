@@ -1,36 +1,42 @@
 import sys
-from random import randrange
-from PyQt5 import QtGui, uic
-from PyQt5.QtWidgets import QApplication, QMainWindow
-import sys
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
-from PyQt5.QtCore import Qt
+import sqlite3
+from PyQt5 import uic
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QMainWindow, QTableWidgetItem
 
 
 class MyWidget(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('UI.ui', self)
-        self.b = False
-        self.pushButton.clicked.connect(self.circles)
+        uic.loadUi('main.ui', self)
+        self.loadTable('coffee.sqlite')
 
-    def circles(self):
-        self.b = True
-        self.update()
-
-    def paintEvent(self, event):
-        if self.b:
-            painter = QPainter(self)
-            painter.setPen(QPen(Qt.black, 1, Qt.SolidLine))
-            for i in range(20):
-                painter.setBrush(
-                    QBrush(QColor(randrange(0, 255), randrange(0, 255), randrange(0, 255)), Qt.SolidPattern))
-                r = randrange(5, 50)
-                painter.drawEllipse(randrange(0, self.width()), randrange(0, self.height()), r, r)
+    def loadTable(self, table_name):
+        con = sqlite3.connect(table_name)
+        cur = con.cursor()
+        info = list(cur.execute("""SELECT * FROM coffee""").fetchall())
+        print(info)
+        for i in range(len(info)):
+            info[i] = list(info[i])
+            info[i][1] = cur.execute("""SELECT name FROM sorts
+                                    WHERE id=?""", (info[i][1],)).fetchone()[0]
+            info[i][2] = cur.execute("""SELECT roast FROM roast_degree
+                                                WHERE id=?""", (info[i][2],)).fetchone()[0]
+            info[i][3] = cur.execute("""SELECT type FROM type
+                                                            WHERE id=?""", (info[i][3],)).fetchone()[0]
+        self.tableWidget.setColumnCount(7)
+        self.tableWidget.setHorizontalHeaderLabels(['id', 'название сорта', 'степень обжарки', 'тип', 'описание вкуса',
+                                                    'цена', 'объем упаковки'])
+        self.tableWidget.setRowCount(0)
+        for i, row in enumerate(info):
+            self.tableWidget.setRowCount(self.tableWidget.rowCount() + 1)
+            for j, elem in enumerate(row):
+                self.tableWidget.setItem(i, j, QTableWidgetItem(str(elem)))
+        self.tableWidget.resizeColumnsToContents()
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = MyWidget()
     ex.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
